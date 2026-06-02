@@ -6,7 +6,6 @@ type ViewMode = "day" | "week" | "month" | "year" | "report";
 type ReportStyle = "receipt" | "poster" | "quiet";
 type ThemeOption = {
   id: string;
-  name: string;
   colors: string[];
 };
 type DayRecord = {
@@ -21,6 +20,8 @@ type TimewallState = {
 
 const STORAGE_KEY = "timewall.v2";
 const LEGACY_STORAGE_KEY = "timewall.v1";
+const BLANK = "#F6F2E8";
+
 const BLOCKS = Array.from({ length: 8 }, (_, index) => ({
   id: index,
   label: `${String(index * 3).padStart(2, "0")}:00`,
@@ -29,39 +30,35 @@ const BLOCKS = Array.from({ length: 8 }, (_, index) => ({
 
 const THEMES = [
   {
-    id: "earth",
-    name: "Earth",
-    colors: ["#D8D2C2", "#6F8F72", "#E3B44B", "#B56452"],
+    id: "acid-geometry",
+    colors: [BLANK, "#F26732", "#52AACE", "#8E6EC2"],
   },
   {
-    id: "electric",
-    name: "Electric",
-    colors: ["#171923", "#00D1FF", "#F7F052", "#FF3B8A"],
+    id: "new-art",
+    colors: [BLANK, "#F4F23B", "#F84C8F", "#A7E6A8"],
   },
   {
-    id: "sorbet",
-    name: "Sorbet",
-    colors: ["#E7E5F0", "#7DD3C7", "#FFB86B", "#FF7A90"],
+    id: "field-stripe",
+    colors: [BLANK, "#31C65B", "#FF7A70", "#8FD0EA"],
   },
   {
-    id: "ink",
-    name: "Ink",
-    colors: ["#C8CDD7", "#2F80ED", "#F2994A", "#7B2CBF"],
+    id: "vertical-poster",
+    colors: [BLANK, "#66329A", "#C91D75", "#FF962D"],
   },
 ] satisfies ThemeOption[];
 
 const REPORT_COPY = {
   receipt: {
     name: "小票",
-    hint: "像一张周末小票，适合截图分享。",
+    hint: "像一张皱起的时间收据，适合保存这一周的清单感。",
   },
   poster: {
     name: "海报",
-    hint: "更像一张状态海报，适合作品集展示。",
+    hint: "黑金展览海报风格，把一周变成一张视觉公告。",
   },
   quiet: {
-    name: "极简",
-    hint: "不解释颜色，只保留这一周的节奏。",
+    name: "现代",
+    hint: "弥散光感的现代版，只保留颜色、比例和轻量文字。",
   },
 };
 
@@ -119,7 +116,7 @@ const formatDateMeta = (date: Date) =>
   })}`;
 
 const getInitialState = (): TimewallState => ({
-  themeId: "earth",
+  themeId: "acid-geometry",
   labels: ["", "", "", ""],
   days: {},
 });
@@ -133,7 +130,15 @@ const isDayRecord = (value: unknown): value is DayRecord => {
 const normalizeState = (value: unknown): TimewallState => {
   if (!value || typeof value !== "object") return getInitialState();
   const raw = value as Partial<TimewallState>;
-  const themeId: string = THEMES.some((theme) => theme.id === raw.themeId) ? String(raw.themeId) : "earth";
+  const legacyThemeMap: Record<string, string> = {
+    earth: "acid-geometry",
+    electric: "new-art",
+    sorbet: "field-stripe",
+    ink: "vertical-poster",
+  };
+  const rawThemeId = String(raw.themeId ?? "");
+  const mappedThemeId = legacyThemeMap[rawThemeId] ?? rawThemeId;
+  const themeId = THEMES.some((theme) => theme.id === mappedThemeId) ? mappedThemeId : "acid-geometry";
   const labels = Array.from({ length: 4 }, (_, index) => String(raw.labels?.[index] ?? ""));
   const days = Object.entries(raw.days ?? {}).reduce<Record<string, DayRecord>>((result, [key, day]) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || !isDayRecord(day)) return result;
@@ -161,14 +166,25 @@ const dominantColorIndex = (blocks: number[]) => {
   return winner;
 };
 
+const escapeXml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
 const downloadTextFile = (filename: string, content: string, type: string) => {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, 1000);
 };
 
 const createReportText = (labels: string[], counts: number[], filledBlocks: number) => {
@@ -180,6 +196,107 @@ const createReportText = (labels: string[], counts: number[], filledBlocks: numb
   return [`Timewall 本周小报`, `已记录 ${filledBlocks} 个有颜色的时间块`, ...rows].join("\n");
 };
 
+const openImagePreview = (preview: Window | null, dataUrl: string, filename: string) => {
+  if (!preview) return;
+  preview.document.write(`<!doctype html>
+    <html lang="zh-CN">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>${filename}</title>
+        <style>
+          html,
+          body {
+            min-height: 100%;
+            margin: 0;
+            background: #f3f0e8;
+          }
+
+          body {
+            display: grid;
+            place-items: center;
+            padding: 16px;
+          }
+
+          img {
+            width: min(100%, 430px);
+            height: auto;
+            display: block;
+            border-radius: 16px;
+            box-shadow: 0 20px 54px rgba(36, 34, 30, 0.18);
+          }
+        </style>
+      </head>
+      <body>
+        <img src="${dataUrl}" alt="Timewall weekly report" />
+      </body>
+    </html>`);
+  preview.document.close();
+};
+
+const svgToPngDownload = async (filename: string, svg: string, width: number, height: number) => {
+  const image = new Image();
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
+  await new Promise<void>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("report image load timeout")), 5000);
+    image.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new Error("report image load failed"));
+    };
+    image.onload = () => {
+      window.clearTimeout(timer);
+      resolve();
+    };
+    image.src = url;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width * 2;
+  canvas.height = height * 2;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("canvas unavailable");
+  context.scale(2, 2);
+  context.drawImage(image, 0, 0, width, height);
+
+  const dataUrl = canvas.toDataURL("image/png");
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  window.setTimeout(() => {
+    link.remove();
+  }, 1000);
+
+  return dataUrl;
+};
+
+const reportRows = (theme: ThemeOption, labels: string[], counts: number[], total: number) =>
+  theme.colors.map((color, index) => ({
+    color,
+    label: labels[index]?.trim() || (index === 0 ? "空白" : `颜色 ${index}`),
+    percent: Math.round((counts[index] / total) * 100),
+  }));
+
+const weeklyCells = (dates: Date[], state: TimewallState, theme: ThemeOption, cell: (args: { x: number; y: number; color: string; dateIndex: number; blockIndex: number }) => string) =>
+  dates
+    .map((date, dateIndex) => {
+      const blocks = getDay(state, dateKey(date)).blocks;
+      return blocks
+        .map((block, blockIndex) =>
+          cell({
+            x: 64 + dateIndex * 74,
+            y: 214 + blockIndex * 30,
+            color: theme.colors[block],
+            dateIndex,
+            blockIndex,
+          }),
+        )
+        .join("");
+    })
+    .join("");
+
 const createReportSvg = ({
   dates,
   state,
@@ -187,6 +304,7 @@ const createReportSvg = ({
   labels,
   counts,
   filledBlocks,
+  reportStyle,
 }: {
   dates: Date[];
   state: TimewallState;
@@ -194,39 +312,120 @@ const createReportSvg = ({
   labels: string[];
   counts: number[];
   filledBlocks: number;
+  reportStyle: ReportStyle;
 }) => {
   const total = dates.length * 8;
-  const rows = theme.colors
-    .map((color, index) => {
-      const y = 550 + index * 38;
-      const label = labels[index]?.trim() || `颜色 ${index + 1}`;
-      return `<circle cx="80" cy="${y - 6}" r="8" fill="${color}" /><text x="100" y="${y}" font-size="18">${label}</text><text x="560" y="${y}" font-size="18" text-anchor="end">${Math.round((counts[index] / total) * 100)}%</text>`;
-    })
-    .join("");
-  const wall = dates
-    .map((date, dayIndex) => {
-      const x = 72 + dayIndex * 70;
-      const blocks = getDay(state, dateKey(date)).blocks;
-      const cells = blocks
-        .map((block, blockIndex) => {
-          const y = 198 + blockIndex * 34;
-          return `<rect x="${x}" y="${y}" width="46" height="24" rx="5" fill="${theme.colors[block]}" />`;
-        })
-        .join("");
-      return `<text x="${x + 23}" y="178" font-size="14" text-anchor="middle" fill="#777064">${REPORT_WEEKDAYS[(date.getDay() + 6) % 7]}</text>${cells}`;
-    })
-    .join("");
+  const rows = reportRows(theme, labels, counts, total);
+  const weekRange = `${String(dates[0].getMonth() + 1).padStart(2, "0")}/${String(dates[0].getDate()).padStart(2, "0")}-${String(dates[6].getMonth() + 1).padStart(2, "0")}/${String(dates[6].getDate()).padStart(2, "0")}`;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="760" viewBox="0 0 640 760">
-  <rect width="640" height="760" rx="24" fill="#fffdf7"/>
-  <text x="72" y="78" font-size="22" font-family="Arial, sans-serif" fill="#777064">Timewall</text>
-  <text x="72" y="122" font-size="38" font-family="Arial, sans-serif" font-weight="700" fill="#24221e">本周小报</text>
-  <text x="72" y="154" font-size="18" font-family="Arial, sans-serif" fill="#777064">这一周留下了 ${filledBlocks} 个有颜色的时间块。</text>
-  <g font-family="Arial, sans-serif">${wall}</g>
-  <line x1="72" y1="512" x2="568" y2="512" stroke="#24221e" stroke-opacity="0.14"/>
-  <g font-family="Arial, sans-serif" fill="#24221e">${rows}</g>
-  <text x="72" y="720" font-size="16" font-family="Arial, sans-serif" fill="#777064">数据仅保存在你的浏览器，导出备份后可迁移到其他设备。</text>
-</svg>`;
+  if (reportStyle === "receipt") {
+    const itemRows = rows
+      .map(
+        (row, index) =>
+          `<text x="58" y="${414 + index * 34}">${escapeXml(row.label).toUpperCase()}</text><text x="556" y="${414 + index * 34}" text-anchor="end">${row.percent}%</text>`,
+      )
+      .join("");
+    const dayRows = dates
+      .map((date, index) => {
+        const day = getDay(state, dateKey(date));
+        const marked = day.blocks.filter((block) => block !== 0).length;
+        return `<text x="58" y="${196 + index * 25}">${REPORT_WEEKDAYS[(date.getDay() + 6) % 7]}</text><text x="556" y="${196 + index * 25}" text-anchor="end">${marked}:00</text>`;
+      })
+      .join("");
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="860" viewBox="0 0 640 860">
+      <defs>
+        <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="4" seed="8"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.14"/></feComponentTransfer></filter>
+        <filter id="ink"><feDropShadow dx="0" dy="2" stdDeviation="0.6" flood-color="#111" flood-opacity="0.18"/></filter>
+      </defs>
+      <rect width="640" height="860" fill="#ecebe6"/>
+      <rect width="640" height="860" filter="url(#paper)" opacity="0.8"/>
+      <g font-family="'Courier New', monospace" fill="#202020">
+        <text x="320" y="82" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="48" font-weight="900" filter="url(#ink)">TIMEWALL</text>
+        <text x="320" y="120" text-anchor="middle" font-size="28" font-weight="800" letter-spacing="3">WEEKLY RECEIPT</text>
+        <text x="58" y="174" font-size="22">ORDER #</text><text x="556" y="174" text-anchor="end" font-size="22">0007</text>
+        ${dayRows}
+        <text x="58" y="376" font-size="20">==============================</text>
+        ${itemRows}
+        <text x="58" y="558" font-size="20">==============================</text>
+        <text x="58" y="596" font-size="22">NO. OF BLOCKS SOLD:</text><text x="556" y="596" text-anchor="end" font-size="22">${filledBlocks}</text>
+        <text x="58" y="630" font-size="22">TOTAL:</text><text x="556" y="630" text-anchor="end" font-size="22">${filledBlocks * 3}:00</text>
+        <text x="58" y="674" font-size="20">==============================</text>
+        <g transform="translate(145 720)">
+          ${Array.from({ length: 28 }, (_, index) => `<rect x="${index * 11}" y="${index % 2 === 0 ? 0 : 6}" width="${index % 3 === 0 ? 6 : 4}" height="${index % 4 === 0 ? 48 : 34}" rx="2" fill="#111"/>`).join("")}
+        </g>
+        <text x="320" y="824" text-anchor="middle" font-size="20">LOCAL ONLY | SAVE THIS IMAGE</text>
+      </g>
+    </svg>`;
+  }
+
+  if (reportStyle === "poster") {
+    const cells = weeklyCells(
+      dates,
+      state,
+      theme,
+      ({ x, y, color }) => `<rect x="${x}" y="${y}" width="48" height="22" rx="2" fill="${color}" opacity="0.95"/>`,
+    );
+    const rowText = rows
+      .map(
+        (row, index) =>
+          `<text x="72" y="${662 + index * 36}" font-size="20">${escapeXml(row.label)}</text><line x1="230" x2="472" y1="${654 + index * 36}" y2="${654 + index * 36}" stroke="#caa66b" stroke-width="3"/><text x="522" y="${662 + index * 36}" text-anchor="end" font-size="20">${row.percent}%</text>`,
+      )
+      .join("");
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="860" viewBox="0 0 640 860">
+      <defs>
+        <radialGradient id="ring" cx="34%" cy="34%" r="78%"><stop offset="0" stop-color="#f4f2ec"/><stop offset="0.18" stop-color="#141414"/><stop offset="0.32" stop-color="#74716b"/><stop offset="0.54" stop-color="#1b1b1b"/><stop offset="1" stop-color="#090909"/></radialGradient>
+        <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="12"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.16"/></feComponentTransfer></filter>
+      </defs>
+      <rect width="640" height="860" fill="#151515"/>
+      <rect width="640" height="860" filter="url(#grain)"/>
+      <circle cx="260" cy="300" r="270" fill="url(#ring)" opacity="0.88"/>
+      <text x="50" y="164" fill="#caa66b" font-size="116" font-family="Georgia, serif" font-weight="800">边</text>
+      <text x="368" y="164" fill="#caa66b" font-size="116" font-family="Georgia, serif" font-weight="800">界</text>
+      <text x="50" y="310" fill="#caa66b" font-size="116" font-family="Georgia, serif" font-weight="800">时</text>
+      <text x="368" y="310" fill="#caa66b" font-size="116" font-family="Georgia, serif" font-weight="800">间</text>
+      <text x="214" y="204" fill="#f2e6d0" font-size="26" font-family="Georgia, serif" font-weight="700">TIME BOUNDARY</text>
+      <text x="214" y="238" fill="#f2e6d0" font-size="26" font-family="Georgia, serif" font-weight="700">DISSOCIATION</text>
+      <text x="260" y="320" fill="#f2e6d0" font-size="28" font-family="Arial, sans-serif" font-weight="800">${dates[0].getFullYear()}</text>
+      <g>${cells}</g>
+      <g fill="#caa66b" font-family="Georgia, serif">${rowText}</g>
+      <text x="72" y="806" fill="#caa66b" font-size="22" font-family="Georgia, serif">WEEK START ${dateKey(dates[0])}</text>
+    </svg>`;
+  }
+
+  const rowText = rows
+    .map(
+      (row, index) =>
+        `<text x="472" y="${196 + index * 72}" text-anchor="end" font-size="20">${escapeXml(row.label)}</text><text x="472" y="${224 + index * 72}" text-anchor="end" font-size="18">#${row.color.replace("#", "")}</text><text x="472" y="${252 + index * 72}" text-anchor="end" font-size="18">${row.percent}%</text>`,
+    )
+    .join("");
+  const cells = weeklyCells(
+    dates,
+    state,
+    theme,
+    ({ x, y, color }) => `<circle cx="${x + 24}" cy="${y + 12}" r="11" fill="${color}" opacity="0.86"/>`,
+  );
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="860" viewBox="0 0 640 860">
+    <defs>
+      <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="21"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.12"/></feComponentTransfer></filter>
+      <filter id="blur"><feGaussianBlur stdDeviation="22"/></filter>
+    </defs>
+    <rect width="640" height="860" fill="#f3f3df"/>
+    <rect width="640" height="860" filter="url(#grain)"/>
+    <path d="M-30 230 C150 36 330 132 368 256 C410 394 270 474 130 420 C20 378 -100 340 -30 230Z" fill="${theme.colors[1]}" opacity="0.82" filter="url(#blur)"/>
+    <path d="M240 430 C430 324 620 438 690 590 C742 706 558 832 392 738 C248 656 110 558 240 430Z" fill="${theme.colors[2]}" opacity="0.78" filter="url(#blur)"/>
+    <text x="48" y="116" font-family="Georgia, serif" font-size="60" fill="#18211e">弥</text>
+    <text x="500" y="116" font-family="Georgia, serif" font-size="60" fill="#18211e">散</text>
+    <g font-family="Arial, sans-serif" fill="#18211e">${rowText}</g>
+    <text x="48" y="564" font-family="Arial, sans-serif" font-size="22">${weekRange}</text>
+    <text x="48" y="592" font-family="Arial, sans-serif" font-size="22">Time</text>
+    <text x="48" y="688" font-family="Georgia, serif" font-size="42" fill="#18211e">ART POSTER</text>
+    <text x="48" y="740" font-family="Georgia, serif" font-size="42" fill="#18211e">DESIGN</text>
+    <g>${cells}</g>
+    <text x="48" y="812" font-family="Arial, sans-serif" font-size="16" fill="#18211e">Through the gradual blur, the week becomes a color memory.</text>
+  </svg>`;
 };
 
 export default function Home() {
@@ -347,10 +546,28 @@ export default function Home() {
     }
   };
 
-  const exportReport = () => {
-    const svg = createReportSvg({ dates: weekDates, state, theme, labels: state.labels, counts: reportCounts, filledBlocks });
-    downloadTextFile(`timewall-report-${dateKey(weekStart)}.svg`, svg, "image/svg+xml");
-    setToast("小报 SVG 已导出");
+  const exportReport = async () => {
+    setToast("正在导出图片");
+    const preview = window.open("", "_blank");
+    const svg = createReportSvg({
+      dates: weekDates,
+      state,
+      theme,
+      labels: state.labels,
+      counts: reportCounts,
+      filledBlocks,
+      reportStyle,
+    });
+    try {
+      const filename = `timewall-report-${dateKey(weekStart)}.png`;
+      const dataUrl = await svgToPngDownload(filename, svg, 640, 860);
+      openImagePreview(preview, dataUrl, filename);
+      setToast("小报图片已导出");
+    } catch {
+      preview?.close();
+      downloadTextFile(`timewall-report-${dateKey(weekStart)}.svg`, svg, "image/svg+xml");
+      setToast("图片导出失败，已导出 SVG 备用");
+    }
   };
 
   return (
@@ -711,7 +928,7 @@ function ReportView({
             <input
               value={labels[index]}
               onChange={(event) => setLabels(labels.map((label, labelIndex) => (labelIndex === index ? event.target.value : label)))}
-              placeholder="给这个颜色起名"
+              placeholder={index === 0 ? "空白" : "给这个颜色起名"}
             />
           </label>
         ))}
@@ -735,7 +952,7 @@ function ReportView({
           {theme.colors.map((color, index) => (
             <div key={color}>
               <i style={{ background: color }} />
-              <span>{labels[index]?.trim() || `颜色 ${index + 1}`}</span>
+              <span>{labels[index]?.trim() || (index === 0 ? "空白" : `颜色 ${index}`)}</span>
               <b>{Math.round((counts[index] / total) * 100)}%</b>
             </div>
           ))}
@@ -744,8 +961,13 @@ function ReportView({
       </article>
 
       <div className="report-actions">
-        <button onClick={onCopy}>复制文字</button>
-        <button onClick={onExport}>导出 SVG</button>
+        <button type="button" onClick={onCopy}>复制文字</button>
+        <button
+          type="button"
+          onClick={onExport}
+        >
+          导出图片
+        </button>
       </div>
     </div>
   );
@@ -781,8 +1003,8 @@ function SettingsPanel({
           </button>
         </header>
         <div className="theme-list">
-          {themes.map((theme) => (
-            <button key={theme.id} className={activeId === theme.id ? "active" : ""} onClick={() => onChange(theme.id)} aria-label={`Use ${theme.name} color system`}>
+          {themes.map((theme, themeIndex) => (
+            <button key={theme.id} className={activeId === theme.id ? "active" : ""} onClick={() => onChange(theme.id)} aria-label={`Use color system ${themeIndex + 1}`}>
               <em>
                 {theme.colors.map((color) => (
                   <i key={color} style={{ background: color }} />

@@ -677,17 +677,193 @@ button {
   box-shadow: 0 18px 42px rgba(54, 48, 36, 0.13);
 }
 
+.receipt-card.receipt {
+  isolation: isolate;
+  border: 0;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(36, 34, 30, 0.08), transparent 18%),
+    radial-gradient(circle at 88% 36%, rgba(36, 34, 30, 0.06), transparent 18%),
+    linear-gradient(104deg, rgba(36, 34, 30, 0.05), transparent 22%),
+    #efeee9;
+  color: #202020;
+  font-family: "Courier New", monospace;
+  box-shadow:
+    0 18px 42px rgba(54, 48, 36, 0.14),
+    inset 0 0 40px rgba(36, 34, 30, 0.05);
+}
+
+.receipt-card.receipt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    repeating-linear-gradient(102deg, rgba(36, 34, 30, 0.025) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(8deg, rgba(255, 255, 255, 0.4) 0 2px, transparent 2px 24px);
+  opacity: 0.95;
+}
+
+.receipt-card.receipt header {
+  display: grid;
+  justify-content: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.receipt-card.receipt header span {
+  color: #202020;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+  text-transform: uppercase;
+}
+
+.receipt-card.receipt header strong {
+  font-size: 18px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.receipt-card.receipt .receipt-summary {
+  border-top: 1px dashed rgba(32, 32, 32, 0.46);
+  border-bottom: 1px dashed rgba(32, 32, 32, 0.46);
+  padding: 12px 0;
+  font-family: "Courier New", monospace;
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .receipt-card.poster {
   min-height: 500px;
   align-content: space-between;
+  border: 0;
+  border-radius: 8px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone) 20%, transparent), transparent 46%),
-    #fffdf7;
+    radial-gradient(circle at 22% 36%, rgba(245, 242, 232, 0.92) 0 4%, rgba(20, 20, 20, 0.7) 5%, transparent 42%),
+    radial-gradient(circle at 62% 30%, rgba(202, 166, 107, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34), transparent 28%),
+    #151515;
+  color: #d5ad70;
+  box-shadow: 0 20px 54px rgba(20, 20, 20, 0.26);
+}
+
+.receipt-card.poster::before {
+  content: "边界";
+  position: absolute;
+  left: 14px;
+  top: 50px;
+  color: rgba(213, 173, 112, 0.9);
+  font-family: Georgia, serif;
+  font-size: 106px;
+  font-weight: 800;
+  line-height: 0.82;
+  pointer-events: none;
+}
+
+.receipt-card.poster::after {
+  content: "TIME";
+  position: absolute;
+  right: 14px;
+  bottom: 36px;
+  color: rgba(213, 173, 112, 0.3);
+  font-family: Georgia, serif;
+  font-size: 52px;
+  writing-mode: vertical-rl;
+  pointer-events: none;
+}
+
+.receipt-card.poster header,
+.receipt-card.poster .receipt-summary,
+.receipt-card.poster .receipt-wall,
+.receipt-card.poster .ratio-list,
+.receipt-card.poster footer {
+  position: relative;
+  z-index: 1;
+}
+
+.receipt-card.poster header span,
+.receipt-card.poster footer {
+  color: rgba(213, 173, 112, 0.78);
+}
+
+.receipt-card.poster header strong {
+  color: #f2e6d0;
+  font-family: Georgia, serif;
+  text-transform: uppercase;
+}
+
+.receipt-card.poster .receipt-summary {
+  max-width: 72%;
+  color: #f2e6d0;
+  font-family: Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.receipt-card.poster .receipt-wall {
+  margin-top: 34px;
 }
 
 .receipt-card.quiet {
+  min-height: 500px;
+  border: 0;
+  border-radius: 8px;
   box-shadow: none;
-  background: rgba(255, 253, 247, 0.64);
+  background:
+    radial-gradient(ellipse at 32% 28%, color-mix(in srgb, var(--tone) 68%, transparent), transparent 28%),
+    radial-gradient(ellipse at 72% 62%, rgba(255, 172, 56, 0.48), transparent 36%),
+    radial-gradient(ellipse at 18% 62%, rgba(150, 215, 210, 0.34), transparent 32%),
+    #f3f3df;
+  color: #17201d;
+}
+
+.receipt-card.quiet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(23, 32, 29, 0.18) 1px, transparent 1px);
+  background-size: 4px 4px;
+  opacity: 0.2;
+}
+
+.receipt-card.quiet header,
+.receipt-card.quiet .receipt-summary,
+.receipt-card.quiet .receipt-wall,
+.receipt-card.quiet .ratio-list,
+.receipt-card.quiet footer {
+  position: relative;
+  z-index: 1;
+}
+
+.receipt-card.quiet header {
+  align-items: flex-start;
+}
+
+.receipt-card.quiet header span {
+  color: #17201d;
+  font-family: Georgia, serif;
+  font-size: 38px;
+  text-transform: none;
+}
+
+.receipt-card.quiet header strong {
+  max-width: 80px;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.receipt-card.quiet .receipt-summary {
+  max-width: 72%;
+  margin-top: 74px;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.18;
 }
 
 .receipt-card header,
@@ -740,6 +916,31 @@ button {
   min-height: 30px;
   border-bottom: 1px dashed rgba(36, 34, 30, 0.18);
   font-size: 12px;
+}
+
+.receipt-card.poster .ratio-list div,
+.receipt-card.poster footer {
+  border-color: rgba(213, 173, 112, 0.4);
+}
+
+.receipt-card.poster .ratio-list div {
+  border-bottom-color: rgba(213, 173, 112, 0.42);
+}
+
+.receipt-card.poster .receipt-wall > div > span,
+.receipt-card.poster .ratio-list div,
+.receipt-card.poster .ratio-list b {
+  color: #f2e6d0;
+}
+
+.receipt-card.quiet .ratio-list div {
+  border-bottom: 0;
+  font-size: 11px;
+}
+
+.receipt-card.quiet .ratio-list i {
+  width: 18px;
+  height: 18px;
 }
 
 .ratio-list i {
