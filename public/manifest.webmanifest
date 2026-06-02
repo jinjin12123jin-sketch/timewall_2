@@ -2,14 +2,14 @@
   "name": "Timewall",
   "short_name": "Timewall",
   "description": "A color-first time wall for low-friction daily reflection.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#f3f0e8",
   "theme_color": "#f3f0e8",
   "icons": [
     {
-      "src": "/timewall-icon.svg",
+      "src": "timewall-icon.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
