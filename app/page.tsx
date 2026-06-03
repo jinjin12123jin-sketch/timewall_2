@@ -96,11 +96,14 @@ const startOfWeek = (date: Date) => {
   return addDays(normalized, diff);
 };
 
-const weekOfMonth = (date: Date) => {
-  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-  const firstWeekStart = startOfWeek(firstDayOfMonth);
-  const currentWeekStart = startOfWeek(date);
-  return Math.floor((currentWeekStart.getTime() - firstWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+const getIsoWeekInfo = (date: Date) => {
+  const target = normalizeDate(date);
+  target.setDate(target.getDate() + 3 - ((target.getDay() + 6) % 7));
+  const isoYear = target.getFullYear();
+  const firstThursday = new Date(isoYear, 0, 4);
+  const firstWeekStart = startOfWeek(firstThursday);
+  const week = Math.floor((target.getTime() - firstWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  return { year: isoYear, week };
 };
 
 const formatTitle = (date: Date) => {
@@ -135,7 +138,10 @@ const formatWeekDateRange = (date: Date) => {
   return `${firstMonth} ${firstDay.getDate()} - ${lastDay.getDate()}`;
 };
 
-const formatWeekSubInfo = (date: Date) => `${date.getFullYear()} · Week ${weekOfMonth(date)}`;
+const formatWeekSubInfo = (date: Date) => {
+  const { year, week } = getIsoWeekInfo(date);
+  return `${year} · W${week}`;
+};
 
 const formatMonthTitle = (date: Date) => `${date.getMonth() + 1}月`;
 
@@ -745,6 +751,16 @@ function Header({
   );
 }
 
+type WeeklyHeaderProps = {
+  dateRange: string;
+  /** ISO year/week label, such as "2026 · W31", rather than week-of-month. */
+  subInfo: string;
+  onPrev: () => void;
+  onNext: () => void;
+  onShare: () => void;
+  onSettings: () => void;
+};
+
 function WeeklyHeader({
   dateRange,
   subInfo,
@@ -752,20 +768,14 @@ function WeeklyHeader({
   onNext,
   onShare,
   onSettings,
-}: {
-  dateRange: string;
-  subInfo: string;
-  onPrev: () => void;
-  onNext: () => void;
-  onShare: () => void;
-  onSettings: () => void;
-}) {
+}: WeeklyHeaderProps) {
   const buttonClass =
     "flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors";
+  const titleSizeClass = dateRange.length > 10 ? "text-xl" : "text-3xl";
 
   return (
     <header className="flex items-center justify-between w-full max-w-md bg-[#fafafa] px-3 py-3 rounded-full shadow-sm border border-gray-100">
-      <div className="flex space-x-1.5">
+      <div className="flex shrink-0 space-x-1.5">
         <button type="button" onClick={onShare} className={buttonClass} aria-label="Create weekly report">
           <Share size={18} className="transform -scale-x-100" />
         </button>
@@ -774,12 +784,12 @@ function WeeklyHeader({
         </button>
       </div>
 
-      <div className="flex min-w-0 flex-col items-center justify-center px-1.5 text-center">
-        <h1 className="whitespace-nowrap text-3xl font-black text-gray-900 tracking-tight leading-none">{dateRange}</h1>
-        <span className="text-sm font-medium text-gray-500 mt-1.5">{subInfo}</span>
+      <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-1.5 text-center">
+        <h1 className={`w-full truncate text-center ${titleSizeClass} font-black text-gray-900 tracking-tight leading-none`}>{dateRange}</h1>
+        <span className="mt-1.5 w-full truncate text-center text-sm font-medium text-gray-500">{subInfo}</span>
       </div>
 
-      <div className="flex space-x-1.5">
+      <div className="flex shrink-0 space-x-1.5">
         <button type="button" onClick={onNext} className={buttonClass} aria-label="Next week">
           <ChevronRight size={20} />
         </button>
