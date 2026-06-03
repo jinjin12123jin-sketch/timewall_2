@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Settings, Share } from "lucide-react";
 
 type ViewMode = "day" | "week" | "month" | "year" | "report";
 type ReportStyle = "receipt" | "poster" | "quiet";
@@ -117,7 +118,24 @@ const formatPrimaryDate = (date: Date) =>
     day: "numeric",
   });
 
-const formatWeekTitle = (date: Date) => `${date.getMonth() + 1}月第${weekOfMonth(date)}周`;
+const formatWeekDateRange = (date: Date) => {
+  const firstDay = startOfWeek(date);
+  const lastDay = addDays(firstDay, 6);
+  const firstMonth = firstDay.toLocaleDateString("en-US", { month: "short" });
+  const lastMonth = lastDay.toLocaleDateString("en-US", { month: "short" });
+
+  if (firstDay.getFullYear() !== lastDay.getFullYear()) {
+    return `${firstMonth} ${firstDay.getDate()}, ${firstDay.getFullYear()} - ${lastMonth} ${lastDay.getDate()}, ${lastDay.getFullYear()}`;
+  }
+
+  if (firstDay.getMonth() !== lastDay.getMonth()) {
+    return `${firstMonth} ${firstDay.getDate()} - ${lastMonth} ${lastDay.getDate()}`;
+  }
+
+  return `${firstMonth} ${firstDay.getDate()} - ${lastDay.getDate()}`;
+};
+
+const formatWeekSubInfo = (date: Date) => `${date.getFullYear()} · Week ${weekOfMonth(date)}`;
 
 const formatMonthTitle = (date: Date) => `${date.getMonth() + 1}月`;
 
@@ -682,10 +700,21 @@ function Header({
   onReport: () => void;
   onSettings: () => void;
 }) {
+  if (view === "week") {
+    return (
+      <WeeklyHeader
+        dateRange={formatWeekDateRange(date)}
+        subInfo={formatWeekSubInfo(date)}
+        onPrev={onPrev}
+        onNext={onNext}
+        onShare={onReport}
+        onSettings={onSettings}
+      />
+    );
+  }
+
   const title =
-    view === "week"
-      ? formatWeekTitle(date)
-      : view === "month"
+    view === "month"
         ? formatMonthTitle(date)
       : view === "year"
         ? String(date.getFullYear())
@@ -712,6 +741,52 @@ function Header({
       <button className="icon-button" onClick={onSettings} aria-label="Settings">
         <SettingsIcon />
       </button>
+    </header>
+  );
+}
+
+function WeeklyHeader({
+  dateRange,
+  subInfo,
+  onPrev,
+  onNext,
+  onShare,
+  onSettings,
+}: {
+  dateRange: string;
+  subInfo: string;
+  onPrev: () => void;
+  onNext: () => void;
+  onShare: () => void;
+  onSettings: () => void;
+}) {
+  const buttonClass =
+    "flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors";
+
+  return (
+    <header className="flex items-center justify-between w-full max-w-md bg-[#fafafa] px-3 py-3 rounded-full shadow-sm border border-gray-100">
+      <div className="flex space-x-1.5">
+        <button type="button" onClick={onShare} className={buttonClass} aria-label="Create weekly report">
+          <Share size={18} className="transform -scale-x-100" />
+        </button>
+        <button type="button" onClick={onPrev} className={buttonClass} aria-label="Previous week">
+          <ChevronLeft size={20} />
+        </button>
+      </div>
+
+      <div className="flex min-w-0 flex-col items-center justify-center px-1.5 text-center">
+        <h1 className="whitespace-nowrap text-3xl font-black text-gray-900 tracking-tight leading-none">{dateRange}</h1>
+        <span className="text-sm font-medium text-gray-500 mt-1.5">{subInfo}</span>
+      </div>
+
+      <div className="flex space-x-1.5">
+        <button type="button" onClick={onNext} className={buttonClass} aria-label="Next week">
+          <ChevronRight size={20} />
+        </button>
+        <button type="button" onClick={onSettings} className={buttonClass} aria-label="Settings">
+          <Settings size={18} />
+        </button>
+      </div>
     </header>
   );
 }
