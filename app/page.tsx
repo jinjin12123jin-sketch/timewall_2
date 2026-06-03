@@ -95,6 +95,13 @@ const startOfWeek = (date: Date) => {
   return addDays(normalized, diff);
 };
 
+const weekOfMonth = (date: Date) => {
+  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const firstWeekStart = startOfWeek(firstDayOfMonth);
+  const currentWeekStart = startOfWeek(date);
+  return Math.floor((currentWeekStart.getTime() - firstWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+};
+
 const formatTitle = (date: Date) => {
   const today = dateKey(new Date());
   const yesterday = dateKey(addDays(new Date(), -1));
@@ -109,6 +116,10 @@ const formatPrimaryDate = (date: Date) =>
     month: "short",
     day: "numeric",
   });
+
+const formatWeekTitle = (date: Date) => `${date.getMonth() + 1}月第${weekOfMonth(date)}周`;
+
+const formatMonthTitle = (date: Date) => `${date.getMonth() + 1}月`;
 
 const formatDateMeta = (date: Date) =>
   `${date.getFullYear()} · ${date.toLocaleDateString("en-US", {
@@ -672,13 +683,16 @@ function Header({
   onSettings: () => void;
 }) {
   const title =
-    view === "month"
-      ? date.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    view === "week"
+      ? formatWeekTitle(date)
+      : view === "month"
+        ? formatMonthTitle(date)
       : view === "year"
         ? String(date.getFullYear())
         : view === "report"
           ? "本周小报"
           : formatTitle(date);
+  const subtitle = view === "day" ? formatDateMeta(date) : "";
 
   return (
     <header className="topbar">
@@ -690,7 +704,7 @@ function Header({
       </button>
       <div className="date-title">
         <span>{view === "day" ? formatPrimaryDate(date) : title}</span>
-        <small>{view === "day" ? formatDateMeta(date) : "Timewall"}</small>
+        {subtitle && <small>{subtitle}</small>}
       </div>
       <button className="icon-button" onClick={onNext} aria-label="Next">
         {">"}
