@@ -769,8 +769,6 @@ function WeeklyHeader({
   onShare,
   onSettings,
 }: WeeklyHeaderProps) {
-  const titleSizeClass = dateRange.length > 10 ? "text-xl" : "text-3xl";
-
   return (
     <header className="topbar weekly-topbar">
       <button type="button" onClick={onShare} className="icon-button share-button" aria-label="Create weekly report">
@@ -781,7 +779,7 @@ function WeeklyHeader({
       </button>
 
       <div className="weekly-date-title">
-        <h1 className={`w-full truncate text-center ${titleSizeClass} font-black text-gray-900 tracking-tight leading-none`}>{dateRange}</h1>
+        <h1 className="w-full truncate text-center text-[clamp(22px,6.5vw,28px)] font-black text-gray-900 tracking-tight leading-none">{dateRange}</h1>
         <span className="mt-1.5 w-full truncate text-center text-sm font-medium text-gray-500">{subInfo}</span>
       </div>
 
