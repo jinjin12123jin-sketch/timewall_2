@@ -770,16 +770,17 @@ button {
 }
 
 .receipt-card.poster::before {
-  content: "边界";
+  content: "时间\A留痕";
   position: absolute;
-  left: 14px;
-  top: 50px;
-  color: rgba(213, 173, 112, 0.9);
+  left: 16px;
+  top: 54px;
+  color: rgba(213, 173, 112, 0.18);
   font-family: Georgia, serif;
-  font-size: 106px;
+  font-size: 96px;
   font-weight: 800;
-  line-height: 0.82;
+  line-height: 0.9;
   pointer-events: none;
+  white-space: pre-line;
 }
 
 .receipt-card.poster::after {
@@ -815,11 +816,16 @@ button {
 }
 
 .receipt-card.poster .receipt-summary {
-  max-width: 72%;
-  color: #f2e6d0;
-  font-family: Georgia, serif;
-  font-size: 19px;
-  font-weight: 700;
+  max-width: 82%;
+  border-left: 3px solid rgba(213, 173, 112, 0.78);
+  padding: 12px 14px;
+  background: rgba(8, 8, 8, 0.48);
+  color: #fff7e8;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.45;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
 }
 
 .receipt-card.poster .receipt-wall {

@@ -55,11 +55,11 @@ const REPORT_COPY = {
   },
   poster: {
     name: "海报",
-    hint: "黑金展览海报风格，把一周变成一张视觉公告。",
+    hint: "黑金展览排版，把一周变成一张视觉公告。",
   },
   quiet: {
     name: "现代",
-    hint: "弥散光感的现代版，只保留颜色、比例和轻量文字。",
+    hint: "弥散光感版本，只保留颜色、比例和轻量文字。",
   },
 };
 
@@ -352,6 +352,9 @@ const createReportSvg = ({
   const total = dates.length * 8;
   const rows = reportRows(theme, labels, counts, total);
   const weekRange = `${String(dates[0].getMonth() + 1).padStart(2, "0")}/${String(dates[0].getDate()).padStart(2, "0")}-${String(dates[6].getMonth() + 1).padStart(2, "0")}/${String(dates[6].getDate()).padStart(2, "0")}`;
+  const dominant = counts.indexOf(Math.max(...counts));
+  const dominantLabel = labels[dominant]?.trim() || (dominant === 0 ? "空白" : `颜色 ${dominant}`);
+  const posterSummaryLine = dominant === 0 ? `本周记录 ${filledBlocks} 个有色时间块` : `${dominantLabel} · ${filledBlocks} 个有色时间块`;
 
   if (reportStyle === "receipt") {
     const itemRows = rows
@@ -377,7 +380,7 @@ const createReportSvg = ({
       <rect width="640" height="860" filter="url(#paper)" opacity="0.8"/>
       <g font-family="'Courier New', monospace" fill="#202020">
         <text x="320" y="82" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="48" font-weight="900" filter="url(#ink)">TIMEWALL</text>
-        <text x="320" y="120" text-anchor="middle" font-size="28" font-weight="800" letter-spacing="3">WEEKLY RECEIPT</text>
+        <text x="320" y="120" text-anchor="middle" font-size="28" font-weight="800" letter-spacing="3">WEEKLY REPORT</text>
         <text x="58" y="174" font-size="22">ORDER #</text><text x="556" y="174" text-anchor="end" font-size="22">0007</text>
         ${dayRows}
         <text x="58" y="376" font-size="20">==============================</text>
@@ -415,15 +418,19 @@ const createReportSvg = ({
       </defs>
       <rect width="640" height="860" fill="#151515"/>
       <rect width="640" height="860" filter="url(#grain)"/>
-      <circle cx="260" cy="300" r="270" fill="url(#ring)" opacity="0.88"/>
-      <text x="50" y="164" fill="#caa66b" font-size="116" font-family="Georgia, serif" font-weight="800">边</text>
-      <text x="368" y="164" fill="#caa66b" font-size="116" font-family="Georgia, serif" font-weight="800">界</text>
-      <text x="50" y="310" fill="#caa66b" font-size="116" font-family="Georgia, serif" font-weight="800">时</text>
-      <text x="368" y="310" fill="#caa66b" font-size="116" font-family="Georgia, serif" font-weight="800">间</text>
-      <text x="214" y="204" fill="#f2e6d0" font-size="26" font-family="Georgia, serif" font-weight="700">TIME BOUNDARY</text>
-      <text x="214" y="238" fill="#f2e6d0" font-size="26" font-family="Georgia, serif" font-weight="700">DISSOCIATION</text>
-      <text x="260" y="320" fill="#f2e6d0" font-size="28" font-family="Arial, sans-serif" font-weight="800">${dates[0].getFullYear()}</text>
-      <g>${cells}</g>
+      <circle cx="260" cy="300" r="270" fill="url(#ring)" opacity="0.82"/>
+      <g fill="#caa66b" opacity="0.22" font-family="Georgia, serif" font-weight="800">
+        <text x="42" y="172" font-size="112">时</text>
+        <text x="376" y="172" font-size="112">间</text>
+        <text x="42" y="316" font-size="112">留</text>
+        <text x="376" y="316" font-size="112">痕</text>
+      </g>
+      <g opacity="0.92">${cells}</g>
+      <rect x="64" y="176" width="448" height="136" rx="4" fill="#111111" opacity="0.56"/>
+      <line x1="88" x2="88" y1="200" y2="286" stroke="#caa66b" stroke-width="4"/>
+      <text x="112" y="218" fill="#caa66b" font-size="24" font-family="Georgia, serif" font-weight="700">TIMEWALL</text>
+      <text x="112" y="252" fill="#fff7e8" font-size="22" font-family="Arial, sans-serif" font-weight="800">${escapeXml(posterSummaryLine)}</text>
+      <text x="112" y="286" fill="#d5ad70" font-size="20" font-family="Arial, sans-serif">${dates[0].getFullYear()} · WEEK FIELD</text>
       <g fill="#caa66b" font-family="Georgia, serif">${rowText}</g>
       <text x="72" y="806" fill="#caa66b" font-size="22" font-family="Georgia, serif">WEEK START ${dateKey(dates[0])}</text>
     </svg>`;
@@ -456,8 +463,8 @@ const createReportSvg = ({
     <g font-family="Arial, sans-serif" fill="#18211e">${rowText}</g>
     <text x="48" y="564" font-family="Arial, sans-serif" font-size="22">${weekRange}</text>
     <text x="48" y="592" font-family="Arial, sans-serif" font-size="22">Time</text>
-    <text x="48" y="688" font-family="Georgia, serif" font-size="42" fill="#18211e">ART POSTER</text>
-    <text x="48" y="740" font-family="Georgia, serif" font-size="42" fill="#18211e">DESIGN</text>
+    <text x="48" y="688" font-family="Georgia, serif" font-size="42" fill="#18211e">TIMEWALL</text>
+    <text x="48" y="740" font-family="Georgia, serif" font-size="42" fill="#18211e">COLOR MEMORY</text>
     <g>${cells}</g>
     <text x="48" y="812" font-family="Arial, sans-serif" font-size="16" fill="#18211e">Through the gradual blur, the week becomes a color memory.</text>
   </svg>`;
@@ -1019,7 +1026,7 @@ function ReportView({
       <article className={`receipt-card ${reportStyle}`}>
         <header>
           <span>Timewall</span>
-          <strong>{REPORT_COPY[reportStyle].name}</strong>
+          <strong>{dateKey(dates[0])}</strong>
         </header>
         <p className="receipt-summary">{summary}</p>
         <div className="receipt-wall">
