@@ -143,7 +143,7 @@ const formatWeekSubInfo = (date: Date) => {
   return `${year} · W${week}`;
 };
 
-const formatMonthTitle = (date: Date) => `${date.getMonth() + 1}月`;
+const formatMonthTitle = (date: Date) => date.toLocaleDateString("en-US", { month: "long" });
 
 const formatDateMeta = (date: Date) =>
   `${date.getFullYear()} · ${date.toLocaleDateString("en-US", {
@@ -732,7 +732,7 @@ function Header({
   return (
     <header className="topbar">
       <button className="icon-button share-button" onClick={onReport} aria-label="Create weekly report">
-        <ShareIcon size={22} />
+        <Share size={18} className="transform -scale-x-100" />
       </button>
       <button className="icon-button" onClick={onPrev} aria-label="Previous">
         {"<"}
@@ -769,44 +769,29 @@ function WeeklyHeader({
   onShare,
   onSettings,
 }: WeeklyHeaderProps) {
-  const buttonClass =
-    "flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors";
   const titleSizeClass = dateRange.length > 10 ? "text-xl" : "text-3xl";
 
   return (
-    <header className="flex items-center justify-between w-full max-w-md bg-[#fafafa] px-3 py-3 rounded-full shadow-sm border border-gray-100">
-      <div className="flex shrink-0 space-x-1.5">
-        <button type="button" onClick={onShare} className={buttonClass} aria-label="Create weekly report">
-          <Share size={18} className="transform -scale-x-100" />
-        </button>
-        <button type="button" onClick={onPrev} className={buttonClass} aria-label="Previous week">
-          <ChevronLeft size={20} />
-        </button>
-      </div>
+    <header className="topbar weekly-topbar">
+      <button type="button" onClick={onShare} className="icon-button share-button" aria-label="Create weekly report">
+        <Share size={18} className="transform -scale-x-100" />
+      </button>
+      <button type="button" onClick={onPrev} className="icon-button" aria-label="Previous week">
+        <ChevronLeft size={20} />
+      </button>
 
-      <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-1.5 text-center">
+      <div className="weekly-date-title">
         <h1 className={`w-full truncate text-center ${titleSizeClass} font-black text-gray-900 tracking-tight leading-none`}>{dateRange}</h1>
         <span className="mt-1.5 w-full truncate text-center text-sm font-medium text-gray-500">{subInfo}</span>
       </div>
 
-      <div className="flex shrink-0 space-x-1.5">
-        <button type="button" onClick={onNext} className={buttonClass} aria-label="Next week">
-          <ChevronRight size={20} />
-        </button>
-        <button type="button" onClick={onSettings} className={buttonClass} aria-label="Settings">
-          <Settings size={18} />
-        </button>
-      </div>
+      <button type="button" onClick={onNext} className="icon-button" aria-label="Next week">
+        <ChevronRight size={20} />
+      </button>
+      <button type="button" onClick={onSettings} className="icon-button" aria-label="Settings">
+        <Settings size={18} />
+      </button>
     </header>
-  );
-}
-
-function ShareIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M7.2 18.2c2.3-5.1 6.1-8 10.4-8.5" />
-      <path d="M13.9 5.8l4.5 3.9-4.5 4" />
-    </svg>
   );
 }
 
