@@ -51,15 +51,15 @@ const THEMES = [
 const REPORT_COPY = {
   receipt: {
     name: "小票",
-    hint: "像一张皱起的时间收据，适合保存这一周的清单感。",
+    hint: "把这一周收好，像一张只属于你的时间凭证。",
   },
   poster: {
     name: "海报",
-    hint: "黑金展览排版，把一周变成一张视觉公告。",
+    hint: "这一周已经留下形状，它不必解释，也足够醒目。",
   },
   quiet: {
     name: "现代",
-    hint: "弥散光感版本，只保留颜色、比例和轻量文字。",
+    hint: "颜色慢慢散开，你只需要看见这一周的重量。",
   },
 };
 
@@ -82,6 +82,13 @@ const dateKey = (date: Date) => {
   const day = String(normalized.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+const formatDotDate = (date: Date) => {
+  const normalized = normalizeDate(date);
+  return `${normalized.getFullYear()}.${String(normalized.getMonth() + 1).padStart(2, "0")}.${String(normalized.getDate()).padStart(2, "0")}`;
+};
+
+const formatDotDateRange = (start: Date, end: Date) => `${formatDotDate(start)}~${formatDotDate(end)}`;
 
 const addDays = (date: Date, amount: number) => {
   const next = normalizeDate(date);
@@ -351,7 +358,7 @@ const createReportSvg = ({
 }) => {
   const total = dates.length * 8;
   const rows = reportRows(theme, labels, counts, total);
-  const weekRange = `${String(dates[0].getMonth() + 1).padStart(2, "0")}/${String(dates[0].getDate()).padStart(2, "0")}-${String(dates[6].getMonth() + 1).padStart(2, "0")}/${String(dates[6].getDate()).padStart(2, "0")}`;
+  const weekRange = formatDotDateRange(dates[0], dates[6]);
   const dominant = counts.indexOf(Math.max(...counts));
   const dominantLabel = labels[dominant]?.trim() || (dominant === 0 ? "空白" : `颜色 ${dominant}`);
   const posterSummaryLine = dominant === 0 ? `本周记录 ${filledBlocks} 个有色时间块` : `${dominantLabel} · ${filledBlocks} 个有色时间块`;
@@ -381,6 +388,7 @@ const createReportSvg = ({
       <g font-family="'Courier New', monospace" fill="#202020">
         <text x="320" y="82" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="48" font-weight="900" filter="url(#ink)">TIMEWALL</text>
         <text x="320" y="120" text-anchor="middle" font-size="28" font-weight="800" letter-spacing="3">WEEKLY REPORT</text>
+        <text x="320" y="150" text-anchor="middle" font-size="18" font-weight="700">${weekRange}</text>
         <text x="58" y="174" font-size="22">ORDER #</text><text x="556" y="174" text-anchor="end" font-size="22">0007</text>
         ${dayRows}
         <text x="58" y="376" font-size="20">==============================</text>
@@ -392,7 +400,7 @@ const createReportSvg = ({
         <g transform="translate(145 720)">
           ${Array.from({ length: 28 }, (_, index) => `<rect x="${index * 11}" y="${index % 2 === 0 ? 0 : 6}" width="${index % 3 === 0 ? 6 : 4}" height="${index % 4 === 0 ? 48 : 34}" rx="2" fill="#111"/>`).join("")}
         </g>
-        <text x="320" y="824" text-anchor="middle" font-size="20">LOCAL ONLY | SAVE THIS IMAGE</text>
+        <text x="320" y="824" text-anchor="middle" font-size="18">${REPORT_COPY.receipt.hint}</text>
       </g>
     </svg>`;
   }
@@ -430,9 +438,9 @@ const createReportSvg = ({
       <line x1="88" x2="88" y1="200" y2="286" stroke="#caa66b" stroke-width="4"/>
       <text x="112" y="218" fill="#caa66b" font-size="24" font-family="Georgia, serif" font-weight="700">TIMEWALL</text>
       <text x="112" y="252" fill="#fff7e8" font-size="22" font-family="Arial, sans-serif" font-weight="800">${escapeXml(posterSummaryLine)}</text>
-      <text x="112" y="286" fill="#d5ad70" font-size="20" font-family="Arial, sans-serif">${dates[0].getFullYear()} · WEEK FIELD</text>
+      <text x="112" y="286" fill="#d5ad70" font-size="20" font-family="Arial, sans-serif">${weekRange}</text>
       <g fill="#caa66b" font-family="Georgia, serif">${rowText}</g>
-      <text x="72" y="806" fill="#caa66b" font-size="22" font-family="Georgia, serif">WEEK START ${dateKey(dates[0])}</text>
+      <text x="72" y="806" fill="#caa66b" font-size="21" font-family="Georgia, serif">${REPORT_COPY.poster.hint}</text>
     </svg>`;
   }
 
@@ -466,7 +474,7 @@ const createReportSvg = ({
     <text x="48" y="688" font-family="Georgia, serif" font-size="42" fill="#18211e">TIMEWALL</text>
     <text x="48" y="740" font-family="Georgia, serif" font-size="42" fill="#18211e">COLOR MEMORY</text>
     <g>${cells}</g>
-    <text x="48" y="812" font-family="Arial, sans-serif" font-size="16" fill="#18211e">Through the gradual blur, the week becomes a color memory.</text>
+    <text x="48" y="812" font-family="Arial, sans-serif" font-size="16" fill="#18211e">${REPORT_COPY.quiet.hint}</text>
   </svg>`;
 };
 
@@ -990,6 +998,7 @@ function ReportView({
   const named = labels.some((label) => label.trim().length > 0);
   const dominant = counts.indexOf(Math.max(...counts));
   const leadName = labels[dominant]?.trim();
+  const weekRange = formatDotDateRange(dates[0], dates[6]);
   const summary = named
     ? `这一周更靠近「${leadName || "未命名颜色"}」，你一共留下了 ${filledBlocks} 个有颜色的时间块。`
     : `这一周你留下了 ${filledBlocks} 个有颜色的时间块。颜色可以先不被解释，它们只需要诚实地待在墙上。`;
@@ -1026,7 +1035,7 @@ function ReportView({
       <article className={`receipt-card ${reportStyle}`}>
         <header>
           <span>Timewall</span>
-          <strong>{dateKey(dates[0])}</strong>
+          <strong>{weekRange}</strong>
         </header>
         <p className="receipt-summary">{summary}</p>
         <div className="receipt-wall">

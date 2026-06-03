@@ -219,12 +219,31 @@ button {
 .style-switcher button {
   height: 34px;
   border-radius: 999px;
+  color: var(--foreground);
   font-size: 12px;
   text-transform: capitalize;
 }
 
+.style-switcher button {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease;
+}
+
+.style-switcher button:not(.active) {
+  background: rgba(255, 253, 247, 0.68);
+  color: var(--foreground);
+}
+
 .mode-tabs button.active,
 .style-switcher button.active {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: #fffdf7;
+}
+
+.style-switcher button.active:hover {
+  border-color: var(--foreground);
   background: var(--foreground);
   color: #fffdf7;
 }
@@ -755,6 +774,19 @@ button {
   font-weight: 700;
 }
 
+.receipt-card.receipt footer {
+  justify-content: center;
+  border-top: 1px dashed rgba(32, 32, 32, 0.4);
+  padding-top: 12px;
+  color: #202020;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  text-transform: none;
+}
+
 .receipt-card.poster {
   min-height: 500px;
   align-content: space-between;
@@ -828,6 +860,20 @@ button {
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
 }
 
+.receipt-card.poster footer {
+  justify-content: flex-start;
+  max-width: 86%;
+  border-top: 1px solid rgba(213, 173, 112, 0.28);
+  padding-top: 12px;
+  color: #d5ad70;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: left;
+  text-transform: none;
+}
+
 .receipt-card.poster .receipt-wall {
   margin-top: 34px;
 }
@@ -864,7 +910,10 @@ button {
 }
 
 .receipt-card.quiet header {
+  display: grid;
+  justify-content: start;
   align-items: flex-start;
+  gap: 8px;
 }
 
 .receipt-card.quiet header span {
@@ -875,11 +924,14 @@ button {
 }
 
 .receipt-card.quiet header strong {
-  max-width: 80px;
-  font-size: 12px;
+  width: 100%;
+  max-width: 100%;
+  color: #17201d;
+  font-size: 14px;
+  letter-spacing: 0.02em;
   line-height: 1.3;
-  text-align: right;
-  text-transform: uppercase;
+  text-align: left;
+  text-transform: none;
 }
 
 .receipt-card.quiet .receipt-summary {
@@ -889,6 +941,18 @@ button {
   font-size: 24px;
   font-weight: 500;
   line-height: 1.18;
+}
+
+.receipt-card.quiet footer {
+  justify-content: flex-start;
+  max-width: 76%;
+  color: rgba(23, 32, 29, 0.72);
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.55;
+  text-align: left;
+  text-transform: none;
 }
 
 .receipt-card header,
