@@ -314,6 +314,43 @@ const svgToPngDownload = async (filename: string, svg: string, width: number, he
   return dataUrl;
 };
 
+const collectDocumentStyles = () =>
+  Array.from(document.styleSheets)
+    .map((sheet) => {
+      try {
+        return Array.from(sheet.cssRules)
+          .map((rule) => rule.cssText)
+          .join("\n");
+      } catch {
+        return "";
+      }
+    })
+    .join("\n");
+
+const exportElementAsPng = async (element: HTMLElement, filename: string) => {
+  const rect = element.getBoundingClientRect();
+  const width = Math.ceil(rect.width);
+  const height = Math.ceil(rect.height);
+  const clone = element.cloneNode(true) as HTMLElement;
+
+  clone.style.width = `${width}px`;
+  clone.style.minHeight = `${height}px`;
+  clone.style.margin = "0";
+
+  const styles = collectDocumentStyles();
+  const html = new XMLSerializer().serializeToString(clone);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <foreignObject width="100%" height="100%">
+      <div xmlns="http://www.w3.org/1999/xhtml">
+        <style>${styles}</style>
+        ${html}
+      </div>
+    </foreignObject>
+  </svg>`;
+
+  return svgToPngDownload(filename, svg, width, height);
+};
+
 const reportRows = (theme: ThemeOption, labels: string[], counts: number[], total: number) =>
   theme.colors.map((color, index) => ({
     color,
@@ -488,6 +525,7 @@ export default function Home() {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [toast, setToast] = useState("");
   const importInputRef = useRef<HTMLInputElement>(null);
+  const reportCardRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     try {
@@ -599,22 +637,23 @@ export default function Home() {
   const exportReport = async () => {
     setToast("正在导出图片");
     const preview = window.open("", "_blank");
-    const svg = createReportSvg({
-      dates: weekDates,
-      state,
-      theme,
-      labels: state.labels,
-      counts: reportCounts,
-      filledBlocks,
-      reportStyle,
-    });
     try {
       const filename = `timewall-report-${dateKey(weekStart)}.png`;
-      const dataUrl = await svgToPngDownload(filename, svg, 640, 860);
+      if (!reportCardRef.current) throw new Error("report card unavailable");
+      const dataUrl = await exportElementAsPng(reportCardRef.current, filename);
       openImagePreview(preview, dataUrl, filename);
       setToast("小报图片已导出");
     } catch {
       preview?.close();
+      const svg = createReportSvg({
+        dates: weekDates,
+        state,
+        theme,
+        labels: state.labels,
+        counts: reportCounts,
+        filledBlocks,
+        reportStyle,
+      });
       downloadTextFile(`timewall-report-${dateKey(weekStart)}.svg`, svg, "image/svg+xml");
       setToast("图片导出失败，已导出 SVG 备用");
     }
@@ -670,6 +709,7 @@ export default function Home() {
               filledBlocks={filledBlocks}
               onCopy={copyReport}
               onExport={exportReport}
+              cardRef={reportCardRef}
             />
           )}
         </section>
@@ -981,6 +1021,7 @@ function ReportView({
   filledBlocks,
   onCopy,
   onExport,
+  cardRef,
 }: {
   dates: Date[];
   state: TimewallState;
@@ -993,6 +1034,7 @@ function ReportView({
   filledBlocks: number;
   onCopy: () => void;
   onExport: () => void;
+  cardRef: { current: HTMLElement | null };
 }) {
   const total = dates.length * 8;
   const named = labels.some((label) => label.trim().length > 0);
@@ -1032,7 +1074,7 @@ function ReportView({
         ))}
       </div>
 
-      <article className={`receipt-card ${reportStyle}`}>
+      <article ref={cardRef} className={`receipt-card ${reportStyle}`}>
         <header>
           <span>Timewall</span>
           <strong>{weekRange}</strong>
