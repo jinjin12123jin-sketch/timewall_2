@@ -1015,6 +1015,20 @@ button {
   font-size: 12px;
 }
 
+.receipt-card.exporting-report .ratio-list div {
+  min-height: 38px;
+  align-items: center;
+  overflow: visible;
+  padding-block: 3px;
+  line-height: 1.45;
+}
+
+.receipt-card.exporting-report .ratio-list span,
+.receipt-card.exporting-report .ratio-list b {
+  overflow: visible;
+  line-height: 1.45;
+}
+
 .receipt-card.poster .ratio-list div,
 .receipt-card.poster footer {
   border-color: rgba(213, 173, 112, 0.4);

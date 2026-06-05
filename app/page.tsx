@@ -232,53 +232,85 @@ const createReportText = (labels: string[], counts: number[], filledBlocks: numb
   return [`Timewall 本周小报`, `已记录 ${filledBlocks} 个有颜色的时间块`, ...rows].join("\n");
 };
 
-const openImagePreview = (preview: Window | null, dataUrl: string, filename: string) => {
-  if (!preview) return;
-  preview.document.write(`<!doctype html>
-    <html lang="zh-CN">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>${filename}</title>
-        <style>
-          html,
-          body {
-            min-height: 100%;
-            margin: 0;
-            background: #f3f0e8;
-          }
-
-          body {
-            display: grid;
-            place-items: center;
-            padding: 16px;
-          }
-
-          img {
-            width: min(100%, 430px);
-            height: auto;
-            display: block;
-            border-radius: 16px;
-            box-shadow: 0 20px 54px rgba(36, 34, 30, 0.18);
-          }
-        </style>
-      </head>
-      <body>
-        <img src="${dataUrl}" alt="Timewall weekly report" />
-      </body>
-    </html>`);
-  preview.document.close();
+const dataUrlToBlob = async (dataUrl: string) => {
+  const response = await fetch(dataUrl);
+  return response.blob();
 };
 
-const downloadDataUrl = (filename: string, dataUrl: string) => {
-  const link = document.createElement("a");
-  link.href = dataUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  window.setTimeout(() => {
-    link.remove();
-  }, 1000);
+const shareImageFile = async (dataUrl: string, filename: string) => {
+  if (!navigator.share || typeof File === "undefined") return false;
+  const blob = await dataUrlToBlob(dataUrl);
+  const file = new File([blob], filename, { type: "image/png" });
+  const shareData: ShareData = {
+    files: [file],
+    title: "Timewall \u672c\u5468\u5c0f\u62a5",
+    text: "\u4fdd\u5b58\u6216\u5206\u4eab\u8fd9\u5f20 Timewall \u5c0f\u62a5",
+  };
+
+  if (!navigator.canShare?.(shareData)) return false;
+  await navigator.share(shareData);
+  return true;
+};
+
+const openImagePreview = (preview: Window | null, dataUrl: string, filename: string) => {
+  if (!preview) return;
+  const serializedDataUrl = JSON.stringify(dataUrl);
+  const serializedFilename = JSON.stringify(filename);
+  const shareButtonLabel = "\u4fdd\u5b58/\u5206\u4eab\u56fe\u7247";
+  const downloadButtonLabel = "\u4e0b\u8f7d PNG";
+  const previewHelp = "\u624b\u673a\u6d4f\u89c8\u5668\u4e0d\u80fd\u81ea\u52a8\u5199\u5165\u76f8\u518c\u3002\u53ef\u70b9\u201c\u4fdd\u5b58/\u5206\u4eab\u56fe\u7247\u201d\u8c03\u8d77\u7cfb\u7edf\u9762\u677f\uff0c\u6216\u70b9\u201c\u4e0b\u8f7d PNG\u201d\uff0c\u4e5f\u53ef\u4ee5\u957f\u6309\u56fe\u7247\u4fdd\u5b58\u3002";
+  const shareTitle = "Timewall \u672c\u5468\u5c0f\u62a5";
+  const shareText = "\u4fdd\u5b58\u6216\u5206\u4eab\u8fd9\u5f20 Timewall \u5c0f\u62a5";
+  const unsupportedShareText = "\u5f53\u524d\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u76f4\u63a5\u5206\u4eab\u56fe\u7247\uff0c\u8bf7\u70b9\u51fb\u4e0b\u8f7d PNG\uff0c\u6216\u957f\u6309\u56fe\u7247\u4fdd\u5b58\u3002";
+  const failedShareText = "\u5f53\u524d\u6d4f\u89c8\u5668\u6ca1\u6709\u6253\u5f00\u5206\u4eab\u9762\u677f\uff0c\u8bf7\u70b9\u51fb\u4e0b\u8f7d PNG\uff0c\u6216\u957f\u6309\u56fe\u7247\u4fdd\u5b58\u3002";
+
+  const previewHtml = [
+    '<!doctype html>',
+    '<html lang="zh-CN">',
+    '<head>',
+    '<meta charset="utf-8" />',
+    '<meta name="viewport" content="width=device-width, initial-scale=1" />',
+    '<title>' + filename + '</title>',
+    '<style>',
+    'html, body { min-height: 100%; margin: 0; background: #f3f0e8; }',
+    'body { display: grid; gap: 14px; justify-items: center; padding: 16px; color: #24221e; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }',
+    '.actions { position: sticky; top: 12px; z-index: 2; display: flex; width: min(100%, 430px); gap: 8px; padding: 8px; border: 1px solid rgba(36,34,30,0.12); border-radius: 999px; background: rgba(255,253,247,0.88); box-shadow: 0 12px 34px rgba(36,34,30,0.14); backdrop-filter: blur(14px); }',
+    'button, a { flex: 1; min-height: 42px; border: 1px solid rgba(36,34,30,0.14); border-radius: 999px; background: #24221e; color: #fffdf7; font: inherit; font-size: 14px; font-weight: 700; line-height: 42px; text-align: center; text-decoration: none; }',
+    'button { cursor: pointer; }',
+    'a { display: inline-flex; align-items: center; justify-content: center; background: #fffdf7; color: #24221e; }',
+    'img { width: min(100%, 430px); height: auto; display: block; border-radius: 16px; box-shadow: 0 20px 54px rgba(36,34,30,0.18); }',
+    'p { width: min(100%, 430px); margin: 0; color: rgba(36,34,30,0.62); font-size: 13px; line-height: 1.5; text-align: center; }',
+    '</style>',
+    '</head>',
+    '<body>',
+    '<div class="actions"><button id="share" type="button">' + shareButtonLabel + '</button><a id="download" download="' + filename + '">' + downloadButtonLabel + '</a></div>',
+    '<img src="' + dataUrl + '" alt="Timewall weekly report" />',
+    '<p>' + previewHelp + '</p>',
+    '<script>',
+    'const dataUrl = ' + serializedDataUrl + ';',
+    'const filename = ' + serializedFilename + ';',
+    'const download = document.getElementById("download");',
+    'async function dataUrlToBlob(value) { const response = await fetch(value); return response.blob(); }',
+    'async function getObjectUrl() { const blob = await dataUrlToBlob(dataUrl); return URL.createObjectURL(blob); }',
+    'getObjectUrl().then((url) => { download.href = url; });',
+    'document.getElementById("share").addEventListener("click", async () => {',
+    'try {',
+    'const blob = await dataUrlToBlob(dataUrl);',
+    'const file = new File([blob], filename, { type: "image/png" });',
+    'const shareData = { files: [file], title: ' + JSON.stringify(shareTitle) + ', text: ' + JSON.stringify(shareText) + ' };',
+    'if (navigator.canShare && navigator.canShare(shareData)) { await navigator.share(shareData); return; }',
+    'alert(' + JSON.stringify(unsupportedShareText) + ');',
+    '} catch {',
+    'alert(' + JSON.stringify(failedShareText) + ');',
+    '}',
+    '});',
+    '</' + 'script>',
+    '</body>',
+    '</html>',
+  ].join('');
+
+  preview.document.write(previewHtml);
+  preview.document.close();
 };
 
 const waitForExportStyles = () => new Promise<void>((resolve) => window.setTimeout(resolve, 0));
@@ -294,7 +326,7 @@ const colorToRgbChannels = (color: string) => {
   return rgb && rgb.every(Number.isFinite) ? rgb.join(", ") : "246, 242, 232";
 };
 
-const exportElementAsPng = async (element: HTMLElement, filename: string) => {
+const exportElementAsPng = async (element: HTMLElement) => {
   const tone = getComputedStyle(element).getPropertyValue("--tone");
   element.style.setProperty("--export-tone-rgb", colorToRgbChannels(tone));
   element.classList.add("exporting-report");
@@ -312,9 +344,7 @@ const exportElementAsPng = async (element: HTMLElement, filename: string) => {
       }),
       new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("report export timeout")), 12000)),
     ]);
-    const dataUrl = canvas.toDataURL("image/png");
-    downloadDataUrl(filename, dataUrl);
-    return dataUrl;
+    return canvas.toDataURL("image/png");
   } finally {
     element.classList.remove("exporting-report");
     element.style.removeProperty("--export-tone-rgb");
@@ -446,9 +476,10 @@ export default function Home() {
     try {
       const filename = `timewall-report-${dateKey(weekStart)}.png`;
       if (!reportCardRef.current) throw new Error("report card unavailable");
-      const dataUrl = await exportElementAsPng(reportCardRef.current, filename);
+      const dataUrl = await exportElementAsPng(reportCardRef.current);
+      const shared = await shareImageFile(dataUrl, filename).catch(() => false);
       openImagePreview(preview, dataUrl, filename);
-      setToast("小报图片已导出");
+      setToast(shared ? "\u5df2\u6253\u5f00\u4fdd\u5b58/\u5206\u4eab\u9762\u677f" : "\u56fe\u7247\u5df2\u751f\u6210\uff0c\u53ef\u5728\u65b0\u9875\u9762\u4fdd\u5b58\u6216\u4e0b\u8f7d PNG");
     } catch {
       preview?.close();
       setToast("\u56fe\u7247\u751f\u6210\u5931\u8d25\uff0c\u53ef\u76f4\u63a5\u622a\u56fe\u4fdd\u5b58\u5f53\u524d\u5c0f\u62a5");
