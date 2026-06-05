@@ -232,24 +232,27 @@ const createReportText = (labels: string[], counts: number[], filledBlocks: numb
   return [`Timewall 本周小报`, `已记录 ${filledBlocks} 个有颜色的时间块`, ...rows].join("\n");
 };
 
-const dataUrlToBlob = async (dataUrl: string) => {
-  const response = await fetch(dataUrl);
-  return response.blob();
-};
-
-const shareImageFile = async (dataUrl: string, filename: string) => {
-  if (!navigator.share || typeof File === "undefined") return false;
-  const blob = await dataUrlToBlob(dataUrl);
-  const file = new File([blob], filename, { type: "image/png" });
-  const shareData: ShareData = {
-    files: [file],
-    title: "Timewall \u672c\u5468\u5c0f\u62a5",
-    text: "\u4fdd\u5b58\u6216\u5206\u4eab\u8fd9\u5f20 Timewall \u5c0f\u62a5",
-  };
-
-  if (!navigator.canShare?.(shareData)) return false;
-  await navigator.share(shareData);
-  return true;
+const openImageLoading = (preview: Window | null) => {
+  if (!preview) return;
+  preview.document.write(
+    [
+      '<!doctype html>',
+      '<html lang="zh-CN">',
+      '<head>',
+      '<meta charset="utf-8" />',
+      '<meta name="viewport" content="width=device-width, initial-scale=1" />',
+      '<title>Timewall export</title>',
+      '<style>',
+      'html, body { min-height: 100%; margin: 0; background: #f3f0e8; }',
+      'body { display: grid; place-items: center; padding: 24px; color: #24221e; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }',
+      'p { margin: 0; border: 1px solid rgba(36,34,30,0.12); border-radius: 999px; padding: 13px 18px; background: rgba(255,253,247,0.86); box-shadow: 0 12px 34px rgba(36,34,30,0.12); font-size: 14px; font-weight: 700; }',
+      '</style>',
+      '</head>',
+      '<body><p>&#27491;&#22312;&#29983;&#25104;&#22270;&#29255;...</p></body>',
+      '</html>',
+    ].join(''),
+  );
+  preview.document.close();
 };
 
 const openImagePreview = (preview: Window | null, dataUrl: string, filename: string) => {
@@ -473,13 +476,13 @@ export default function Home() {
   const exportReport = async () => {
     setToast("正在导出图片");
     const preview = window.open("", "_blank");
+    openImageLoading(preview);
     try {
       const filename = `timewall-report-${dateKey(weekStart)}.png`;
       if (!reportCardRef.current) throw new Error("report card unavailable");
       const dataUrl = await exportElementAsPng(reportCardRef.current);
-      const shared = await shareImageFile(dataUrl, filename).catch(() => false);
       openImagePreview(preview, dataUrl, filename);
-      setToast(shared ? "\u5df2\u6253\u5f00\u4fdd\u5b58/\u5206\u4eab\u9762\u677f" : "\u56fe\u7247\u5df2\u751f\u6210\uff0c\u53ef\u5728\u65b0\u9875\u9762\u4fdd\u5b58\u6216\u4e0b\u8f7d PNG");
+      setToast("\u56fe\u7247\u5df2\u751f\u6210\uff0c\u53ef\u5728\u65b0\u9875\u9762\u4fdd\u5b58\u6216\u4e0b\u8f7d PNG");
     } catch {
       preview?.close();
       setToast("\u56fe\u7247\u751f\u6210\u5931\u8d25\uff0c\u53ef\u76f4\u63a5\u622a\u56fe\u4fdd\u5b58\u5f53\u524d\u5c0f\u62a5");
