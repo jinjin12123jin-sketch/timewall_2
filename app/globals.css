@@ -891,6 +891,14 @@ button {
   color: #17201d;
 }
 
+.receipt-card.quiet.exporting-report {
+  background:
+    radial-gradient(ellipse at 32% 28%, rgba(var(--export-tone-rgb), 0.68), transparent 28%),
+    radial-gradient(ellipse at 72% 62%, rgba(255, 172, 56, 0.48), transparent 36%),
+    radial-gradient(ellipse at 18% 62%, rgba(150, 215, 210, 0.34), transparent 32%),
+    #f3f3df;
+}
+
 .receipt-card.quiet::before {
   content: "";
   position: absolute;

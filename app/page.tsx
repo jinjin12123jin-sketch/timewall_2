@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import html2canvas from "html2canvas";
 import { ChevronLeft, ChevronRight, Settings, Share } from "lucide-react";
 
 type ViewMode = "day" | "week" | "month" | "year" | "report";
@@ -208,13 +209,6 @@ const dominantColorIndex = (blocks: number[]) => {
   return winner;
 };
 
-const escapeXml = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-
 const downloadTextFile = (filename: string, content: string, type: string) => {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -276,32 +270,7 @@ const openImagePreview = (preview: Window | null, dataUrl: string, filename: str
   preview.document.close();
 };
 
-const svgToPngDownload = async (filename: string, svg: string, width: number, height: number) => {
-  const image = new Image();
-  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-
-  await new Promise<void>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error("report image load timeout")), 5000);
-    image.onerror = () => {
-      window.clearTimeout(timer);
-      reject(new Error("report image load failed"));
-    };
-    image.onload = () => {
-      window.clearTimeout(timer);
-      resolve();
-    };
-    image.src = url;
-  });
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width * 2;
-  canvas.height = height * 2;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("canvas unavailable");
-  context.scale(2, 2);
-  context.drawImage(image, 0, 0, width, height);
-
-  const dataUrl = canvas.toDataURL("image/png");
+const downloadDataUrl = (filename: string, dataUrl: string) => {
   const link = document.createElement("a");
   link.href = dataUrl;
   link.download = filename;
@@ -310,209 +279,46 @@ const svgToPngDownload = async (filename: string, svg: string, width: number, he
   window.setTimeout(() => {
     link.remove();
   }, 1000);
-
-  return dataUrl;
 };
 
-const collectDocumentStyles = () =>
-  Array.from(document.styleSheets)
-    .map((sheet) => {
-      try {
-        return Array.from(sheet.cssRules)
-          .map((rule) => rule.cssText)
-          .join("\n");
-      } catch {
-        return "";
-      }
-    })
-    .join("\n");
+const waitForExportStyles = () => new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
+const colorToRgbChannels = (color: string) => {
+  const value = color.trim();
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)?.[1];
+  if (hex) {
+    const full = hex.length === 3 ? hex.split("").map((char) => char + char).join("") : hex;
+    return `${parseInt(full.slice(0, 2), 16)}, ${parseInt(full.slice(2, 4), 16)}, ${parseInt(full.slice(4, 6), 16)}`;
+  }
+  const rgb = value.match(/rgba?\(([^)]+)\)/i)?.[1].split(",").slice(0, 3).map((part) => Math.round(Number(part.trim())));
+  return rgb && rgb.every(Number.isFinite) ? rgb.join(", ") : "246, 242, 232";
+};
 
 const exportElementAsPng = async (element: HTMLElement, filename: string) => {
-  const rect = element.getBoundingClientRect();
-  const width = Math.ceil(rect.width);
-  const height = Math.ceil(rect.height);
-  const clone = element.cloneNode(true) as HTMLElement;
+  const tone = getComputedStyle(element).getPropertyValue("--tone");
+  element.style.setProperty("--export-tone-rgb", colorToRgbChannels(tone));
+  element.classList.add("exporting-report");
+  await waitForExportStyles();
 
-  clone.style.width = `${width}px`;
-  clone.style.minHeight = `${height}px`;
-  clone.style.margin = "0";
-
-  const styles = collectDocumentStyles();
-  const html = new XMLSerializer().serializeToString(clone);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-    <foreignObject width="100%" height="100%">
-      <div xmlns="http://www.w3.org/1999/xhtml">
-        <style>${styles}</style>
-        ${html}
-      </div>
-    </foreignObject>
-  </svg>`;
-
-  return svgToPngDownload(filename, svg, width, height);
-};
-
-const reportRows = (theme: ThemeOption, labels: string[], counts: number[], total: number) =>
-  theme.colors.map((color, index) => ({
-    color,
-    label: labels[index]?.trim() || (index === 0 ? "空白" : `颜色 ${index}`),
-    percent: Math.round((counts[index] / total) * 100),
-  }));
-
-const weeklyCells = (dates: Date[], state: TimewallState, theme: ThemeOption, cell: (args: { x: number; y: number; color: string; dateIndex: number; blockIndex: number }) => string) =>
-  dates
-    .map((date, dateIndex) => {
-      const blocks = getDay(state, dateKey(date)).blocks;
-      return blocks
-        .map((block, blockIndex) =>
-          cell({
-            x: 64 + dateIndex * 74,
-            y: 214 + blockIndex * 30,
-            color: theme.colors[block],
-            dateIndex,
-            blockIndex,
-          }),
-        )
-        .join("");
-    })
-    .join("");
-
-const createReportSvg = ({
-  dates,
-  state,
-  theme,
-  labels,
-  counts,
-  filledBlocks,
-  reportStyle,
-}: {
-  dates: Date[];
-  state: TimewallState;
-  theme: ThemeOption;
-  labels: string[];
-  counts: number[];
-  filledBlocks: number;
-  reportStyle: ReportStyle;
-}) => {
-  const total = dates.length * 8;
-  const rows = reportRows(theme, labels, counts, total);
-  const weekRange = formatDotDateRange(dates[0], dates[6]);
-  const dominant = counts.indexOf(Math.max(...counts));
-  const dominantLabel = labels[dominant]?.trim() || (dominant === 0 ? "空白" : `颜色 ${dominant}`);
-  const posterSummaryLine = dominant === 0 ? `本周记录 ${filledBlocks} 个有色时间块` : `${dominantLabel} · ${filledBlocks} 个有色时间块`;
-
-  if (reportStyle === "receipt") {
-    const itemRows = rows
-      .map(
-        (row, index) =>
-          `<text x="58" y="${414 + index * 34}">${escapeXml(row.label).toUpperCase()}</text><text x="556" y="${414 + index * 34}" text-anchor="end">${row.percent}%</text>`,
-      )
-      .join("");
-    const dayRows = dates
-      .map((date, index) => {
-        const day = getDay(state, dateKey(date));
-        const marked = day.blocks.filter((block) => block !== 0).length;
-        return `<text x="58" y="${196 + index * 25}">${REPORT_WEEKDAYS[(date.getDay() + 6) % 7]}</text><text x="556" y="${196 + index * 25}" text-anchor="end">${marked}:00</text>`;
-      })
-      .join("");
-
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="860" viewBox="0 0 640 860">
-      <defs>
-        <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="4" seed="8"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.14"/></feComponentTransfer></filter>
-        <filter id="ink"><feDropShadow dx="0" dy="2" stdDeviation="0.6" flood-color="#111" flood-opacity="0.18"/></filter>
-      </defs>
-      <rect width="640" height="860" fill="#ecebe6"/>
-      <rect width="640" height="860" filter="url(#paper)" opacity="0.8"/>
-      <g font-family="'Courier New', monospace" fill="#202020">
-        <text x="320" y="82" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="48" font-weight="900" filter="url(#ink)">TIMEWALL</text>
-        <text x="320" y="120" text-anchor="middle" font-size="28" font-weight="800" letter-spacing="3">WEEKLY REPORT</text>
-        <text x="320" y="150" text-anchor="middle" font-size="18" font-weight="700">${weekRange}</text>
-        <text x="58" y="174" font-size="22">ORDER #</text><text x="556" y="174" text-anchor="end" font-size="22">0007</text>
-        ${dayRows}
-        <text x="58" y="376" font-size="20">==============================</text>
-        ${itemRows}
-        <text x="58" y="558" font-size="20">==============================</text>
-        <text x="58" y="596" font-size="22">NO. OF BLOCKS SOLD:</text><text x="556" y="596" text-anchor="end" font-size="22">${filledBlocks}</text>
-        <text x="58" y="630" font-size="22">TOTAL:</text><text x="556" y="630" text-anchor="end" font-size="22">${filledBlocks * 3}:00</text>
-        <text x="58" y="674" font-size="20">==============================</text>
-        <g transform="translate(145 720)">
-          ${Array.from({ length: 28 }, (_, index) => `<rect x="${index * 11}" y="${index % 2 === 0 ? 0 : 6}" width="${index % 3 === 0 ? 6 : 4}" height="${index % 4 === 0 ? 48 : 34}" rx="2" fill="#111"/>`).join("")}
-        </g>
-        <text x="320" y="824" text-anchor="middle" font-size="18">${REPORT_COPY.receipt.hint}</text>
-      </g>
-    </svg>`;
+  try {
+    const canvas = await Promise.race([
+      html2canvas(element, {
+        backgroundColor: null,
+        logging: false,
+        scale: Math.min(3, window.devicePixelRatio || 2),
+        useCORS: true,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
+      }),
+      new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("report export timeout")), 12000)),
+    ]);
+    const dataUrl = canvas.toDataURL("image/png");
+    downloadDataUrl(filename, dataUrl);
+    return dataUrl;
+  } finally {
+    element.classList.remove("exporting-report");
+    element.style.removeProperty("--export-tone-rgb");
   }
-
-  if (reportStyle === "poster") {
-    const cells = weeklyCells(
-      dates,
-      state,
-      theme,
-      ({ x, y, color }) => `<rect x="${x}" y="${y}" width="48" height="22" rx="2" fill="${color}" opacity="0.95"/>`,
-    );
-    const rowText = rows
-      .map(
-        (row, index) =>
-          `<text x="72" y="${662 + index * 36}" font-size="20">${escapeXml(row.label)}</text><line x1="230" x2="472" y1="${654 + index * 36}" y2="${654 + index * 36}" stroke="#caa66b" stroke-width="3"/><text x="522" y="${662 + index * 36}" text-anchor="end" font-size="20">${row.percent}%</text>`,
-      )
-      .join("");
-
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="860" viewBox="0 0 640 860">
-      <defs>
-        <radialGradient id="ring" cx="34%" cy="34%" r="78%"><stop offset="0" stop-color="#f4f2ec"/><stop offset="0.18" stop-color="#141414"/><stop offset="0.32" stop-color="#74716b"/><stop offset="0.54" stop-color="#1b1b1b"/><stop offset="1" stop-color="#090909"/></radialGradient>
-        <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="12"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.16"/></feComponentTransfer></filter>
-      </defs>
-      <rect width="640" height="860" fill="#151515"/>
-      <rect width="640" height="860" filter="url(#grain)"/>
-      <circle cx="260" cy="300" r="270" fill="url(#ring)" opacity="0.82"/>
-      <g fill="#caa66b" opacity="0.22" font-family="Georgia, serif" font-weight="800">
-        <text x="42" y="172" font-size="112">时</text>
-        <text x="376" y="172" font-size="112">间</text>
-        <text x="42" y="316" font-size="112">留</text>
-        <text x="376" y="316" font-size="112">痕</text>
-      </g>
-      <g opacity="0.92">${cells}</g>
-      <rect x="64" y="176" width="448" height="136" rx="4" fill="#111111" opacity="0.56"/>
-      <line x1="88" x2="88" y1="200" y2="286" stroke="#caa66b" stroke-width="4"/>
-      <text x="112" y="218" fill="#caa66b" font-size="24" font-family="Georgia, serif" font-weight="700">TIMEWALL</text>
-      <text x="112" y="252" fill="#fff7e8" font-size="22" font-family="Arial, sans-serif" font-weight="800">${escapeXml(posterSummaryLine)}</text>
-      <text x="112" y="286" fill="#d5ad70" font-size="20" font-family="Arial, sans-serif">${weekRange}</text>
-      <g fill="#caa66b" font-family="Georgia, serif">${rowText}</g>
-      <text x="72" y="806" fill="#caa66b" font-size="21" font-family="Georgia, serif">${REPORT_COPY.poster.hint}</text>
-    </svg>`;
-  }
-
-  const rowText = rows
-    .map(
-      (row, index) =>
-        `<text x="472" y="${196 + index * 72}" text-anchor="end" font-size="20">${escapeXml(row.label)}</text><text x="472" y="${224 + index * 72}" text-anchor="end" font-size="18">#${row.color.replace("#", "")}</text><text x="472" y="${252 + index * 72}" text-anchor="end" font-size="18">${row.percent}%</text>`,
-    )
-    .join("");
-  const cells = weeklyCells(
-    dates,
-    state,
-    theme,
-    ({ x, y, color }) => `<circle cx="${x + 24}" cy="${y + 12}" r="11" fill="${color}" opacity="0.86"/>`,
-  );
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="860" viewBox="0 0 640 860">
-    <defs>
-      <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="21"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 0.12"/></feComponentTransfer></filter>
-      <filter id="blur"><feGaussianBlur stdDeviation="22"/></filter>
-    </defs>
-    <rect width="640" height="860" fill="#f3f3df"/>
-    <rect width="640" height="860" filter="url(#grain)"/>
-    <path d="M-30 230 C150 36 330 132 368 256 C410 394 270 474 130 420 C20 378 -100 340 -30 230Z" fill="${theme.colors[1]}" opacity="0.82" filter="url(#blur)"/>
-    <path d="M240 430 C430 324 620 438 690 590 C742 706 558 832 392 738 C248 656 110 558 240 430Z" fill="${theme.colors[2]}" opacity="0.78" filter="url(#blur)"/>
-    <text x="48" y="116" font-family="Georgia, serif" font-size="60" fill="#18211e">弥</text>
-    <text x="500" y="116" font-family="Georgia, serif" font-size="60" fill="#18211e">散</text>
-    <g font-family="Arial, sans-serif" fill="#18211e">${rowText}</g>
-    <text x="48" y="564" font-family="Arial, sans-serif" font-size="22">${weekRange}</text>
-    <text x="48" y="592" font-family="Arial, sans-serif" font-size="22">Time</text>
-    <text x="48" y="688" font-family="Georgia, serif" font-size="42" fill="#18211e">TIMEWALL</text>
-    <text x="48" y="740" font-family="Georgia, serif" font-size="42" fill="#18211e">COLOR MEMORY</text>
-    <g>${cells}</g>
-    <text x="48" y="812" font-family="Arial, sans-serif" font-size="16" fill="#18211e">${REPORT_COPY.quiet.hint}</text>
-  </svg>`;
 };
 
 export default function Home() {
@@ -645,17 +451,7 @@ export default function Home() {
       setToast("小报图片已导出");
     } catch {
       preview?.close();
-      const svg = createReportSvg({
-        dates: weekDates,
-        state,
-        theme,
-        labels: state.labels,
-        counts: reportCounts,
-        filledBlocks,
-        reportStyle,
-      });
-      downloadTextFile(`timewall-report-${dateKey(weekStart)}.svg`, svg, "image/svg+xml");
-      setToast("图片导出失败，已导出 SVG 备用");
+      setToast("\u56fe\u7247\u751f\u6210\u5931\u8d25\uff0c\u53ef\u76f4\u63a5\u622a\u56fe\u4fdd\u5b58\u5f53\u524d\u5c0f\u62a5");
     }
   };
 
